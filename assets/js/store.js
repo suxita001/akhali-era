@@ -132,13 +132,15 @@
     return fbReady;
   }
   const docs = (snap) => snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+  /* public pages never go blank: if the database can't be read, show the built-in texts */
+  const warn = (e) => console.warn('ახალი ერა: ბაზიდან წაკითხვა ვერ მოხერხდა, ნაჩვენებია საწყისი ტექსტები.', e && (e.code || e.message));
   const ts = (v) => (v && v.toMillis ? v.toMillis() : v || 0);
 
   const fire = {
     mode: 'firebase',
-    async content() { const { db } = await fb(); const d = await db.doc('site/content').get(); return Object.assign(clone(DEFAULTS.content), d.exists ? d.data() : {}); },
+    async content() { try { const { db } = await fb(); const d = await db.doc('site/content').get(); return Object.assign(clone(DEFAULTS.content), d.exists ? d.data() : {}); } catch (e) { warn(e); return clone(DEFAULTS.content); } },
     async saveContent(c) { const { db } = await fb(); await db.doc('site/content').set(c); },
-    async camps() { const { db } = await fb(); const list = docs(await db.collection('camps').get()); return (list.length ? list : clone(DEFAULTS.camps)).sort(byOrder); },
+    async camps() { try { const { db } = await fb(); const list = docs(await db.collection('camps').get()); return (list.length ? list : clone(DEFAULTS.camps)).sort(byOrder); } catch (e) { warn(e); return clone(DEFAULTS.camps).sort(byOrder); } },
     async saveCamp(c) {
       const { db } = await fb(); const id = c.id || uid(); const data = Object.assign({}, c); delete data.id;
       const batch = db.batch(); batch.set(db.collection('camps').doc(id), data);
@@ -146,10 +148,10 @@
       await batch.commit(); return id;
     },
     async deleteCamp(id) { const { db } = await fb(); await db.collection('camps').doc(id).delete(); },
-    async faq() { const { db } = await fb(); const list = docs(await db.collection('faq').get()); return (list.length ? list : clone(DEFAULTS.faq)).sort(byOrder); },
+    async faq() { try { const { db } = await fb(); const list = docs(await db.collection('faq').get()); return (list.length ? list : clone(DEFAULTS.faq)).sort(byOrder); } catch (e) { warn(e); return clone(DEFAULTS.faq).sort(byOrder); } },
     async saveFaq(f) { const { db } = await fb(); const id = f.id || uid(); const data = Object.assign({}, f); delete data.id; await db.collection('faq').doc(id).set(data); },
     async deleteFaq(id) { const { db } = await fb(); await db.collection('faq').doc(id).delete(); },
-    async gallery() { const { db } = await fb(); return docs(await db.collection('gallery').get()).sort((a, b) => ts(b.created) - ts(a.created)); },
+    async gallery() { try { const { db } = await fb(); return docs(await db.collection('gallery').get()).sort((a, b) => ts(b.created) - ts(a.created)); } catch (e) { warn(e); return []; } },
     async addPhoto(p) { const { db } = await fb(); await db.collection('gallery').add(Object.assign({ created: Date.now() }, p)); },
     async updatePhoto(id, patch) { const { db } = await fb(); await db.collection('gallery').doc(id).update(patch); },
     async deletePhoto(id) { const { db } = await fb(); await db.collection('gallery').doc(id).delete(); },
