@@ -265,7 +265,11 @@
         'email-in-use': 'ამ ელ-ფოსტით დადასტურება სხვა მოწყობილობაზე უკვე დაიწყო. გამოიყენე Google ან სხვა ელ-ფოსტა.',
         'bad-email': 'ელ-ფოსტა არასწორია.',
         'too-many': 'ძალიან ბევრი მცდელობა. სცადე რამდენიმე წუთში.',
-      }[e.code] || 'ვერ მოხერხდა. შეამოწმე ინტერნეტი და სცადე თავიდან.');
+        'auth/unauthorized-domain': 'ეს საიტი Firebase-ში ჯერ არ არის დაშვებული (Authentication → Settings → Authorized domains).',
+        'auth/unauthorized-continue-uri': 'ეს საიტი Firebase-ში ჯერ არ არის დაშვებული (Authentication → Settings → Authorized domains).',
+        'auth/operation-not-allowed': 'ეს შესვლის მეთოდი Firebase-ში გამორთულია (Authentication → Sign-in method).',
+        'auth/network-request-failed': 'ინტერნეტთან კავშირი ვერ დამყარდა. სცადე თავიდან.',
+      }[e.code] || 'ვერ მოხერხდა. სცადე თავიდან.' + (e.code ? ' (' + e.code + ')' : ''));
 
       /* ---------------- step 1: details ---------------- */
       function renderForm() {
@@ -379,7 +383,7 @@
         $('#g').onclick = async () => {
           err(''); const b = $('#g'); b.disabled = true;
           try { const v = await Store.verify.google(); if (v) await submit(v); }
-          catch (e) { if (e.code !== 'cancelled') { console.error(e); err('Google-ით დადასტურება ვერ მოხერხდა. სცადე თავიდან ან გამოიყენე ელ-ფოსტა.'); } }
+          catch (e) { if (e.code !== 'cancelled') { console.error(e); err('Google-ით დადასტურება ვერ მოხერხდა. ' + errMsg(e)); } }
           finally { if ($('#g')) $('#g').disabled = false; }
         };
         const ef = $('#ef'), ei = ef.elements.email, sg = $('#suggest');
