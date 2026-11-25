@@ -11,6 +11,7 @@
     content: ['ტექსტები', '<path d="M5 6h14M5 11h14M5 16h9"/>'],
     faq: ['კითხვები', '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/>'],
     gallery: ['გალერეა', '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m4 18 5-5 4 4 2.5-2.5L20 19"/>'],
+    team: ['გუნდი', '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.8c2 .7 3.2 2.4 3.5 5.2"/>'],
   };
   const icon = (p, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
   const I = {
@@ -51,11 +52,14 @@
           ${demo ? '' : '<label class="f"><span>ელ-ფოსტა</span><input name="email" type="email" autocomplete="username" required></label>'}
           <label class="f"><span>პაროლი</span><input name="password" type="password" autocomplete="current-password" required></label>
           <button class="b b-dark b-block" type="submit">შესვლა</button>
+          ${demo ? '' : `<p class="or-line"><span>ან</span></p><button class="b b-line b-block" type="button" id="g-login"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h6a5.1 5.1 0 0 1-2.2 3.4v2.8h3.6c2-1.9 3.2-4.7 3.2-8.2z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.9A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7H2.1a11 11 0 0 0 0 10z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3 .6 4.2 1.6l3.1-3.1A11 11 0 0 0 2.1 7l3.7 2.9C6.7 7.3 9.1 5.4 12 5.4z"/></svg><span>Google-ით შესვლა</span></button><p class="tiny">გუნდის წევრები შედიან Google-ით, იმ ელ-ფოსტით, რომელიც ადმინმა დაამატა.</p>`}
           <a class="back" href="index.html">საიტზე დაბრუნება</a>
         </form>
       </main>`;
     const f = $('#login');
     f.querySelector('input').focus();
+    const g = $('#g-login');
+    if (g) g.onclick = async () => { $('#login-err').textContent = ''; try { await Store.loginGoogle(); } catch (er) { if (er.code !== 'cancelled') $('#login-err').textContent = er.message; } };
     f.onsubmit = async (e) => {
       e.preventDefault();
       const btn = f.querySelector('button'); btn.disabled = true; btn.textContent = 'მოწმდება…';
@@ -209,6 +213,33 @@
     }
   };
 
+  views.team = async function () {
+    const list = await Store.admins();
+    const owner = state.me && state.me.owner;
+    $('#view').innerHTML = `
+      <div class="card team-intro">
+        <p>გუნდის წევრებს აქვთ ადმინ პანელის სრული წვდომა: ჯავშნები, ბანაკები, ტექსტები, გალერეა. შედიან <b>Google-ით</b>, იმ ელ-ფოსტით, რომელსაც აქ დაამატებ (Gmail ან Google-ზე მიბმული სამსახურის ელ-ფოსტა).</p>
+        <p class="muted" style="margin:0">მთავარი ადმინი: ${esc(state.me && state.me.owner ? state.me.email : 'firestore.rules ფაილში მითითებული ელ-ფოსტა')}</p>
+      </div>
+      ${owner ? `<form class="team-add" id="team-add"><input type="email" name="email" placeholder="მაგ. giorgi@gmail.com" required inputmode="email"><button class="b b-dark" type="submit">${icon(I.plus)}<span>დამატება</span></button></form>`
+        : '<p class="demo">გუნდის შეცვლა მხოლოდ მთავარ ადმინს შეუძლია.</p>'}
+      ${list.length ? `<ul class="team">${list.map(a => `<li><span class="av">${esc(a.email[0].toUpperCase())}</span><span class="r-main"><b>${esc(a.email)}</b><small>${a.added ? 'დაემატა ' + esc(fmt(a.added)) : ''}</small></span>${owner ? `<button class="icon-b" data-rm="${esc(a.email)}" aria-label="წაშლა">${icon(I.trash)}</button>` : ''}</li>`).join('')}</ul>`
+        : '<p class="empty">ჯერ არავინ დაგიმატებია.</p>'}`;
+    const form = $('#team-add');
+    if (form) form.onsubmit = async (e) => {
+      e.preventDefault();
+      const email = form.email.value.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) { toast('ელ-ფოსტა არასწორია', true); return; }
+      await guard(() => Store.addAdmin(email), email + ' დაემატა გუნდში');
+      views.team();
+    };
+    $$('[data-rm]').forEach(b => b.onclick = async () => {
+      if (!confirm(`${b.dataset.rm}-ს ადმინ პანელზე წვდომა მოეხსნას?`)) return;
+      await guard(() => Store.removeAdmin(b.dataset.rm), 'წვდომა მოეხსნა');
+      views.team();
+    });
+  };
+
   /* resize to fit one Firestore document (< 1 MB) */
   function shrink(file) {
     return new Promise((res, rej) => {
@@ -276,12 +307,13 @@
         ${b.parentPhone ? `<a class="b b-line" href="tel:${tel(b.parentPhone)}">${icon(I.phone)}<span>მშობელთან</span></a>` : ''}
       </div>
       <dl class="kv">
-        <div><dt>ასაკი</dt><dd>${esc(b.age)}</dd></div>
+        <div><dt>ასაკი</dt><dd>${esc(b.age)}${b.birthDate ? ` <span class="muted">(${esc(b.birthDate.split('-').reverse().join('.'))})</span>` : ''}</dd></div>
         <div><dt>ტელეფონი</dt><dd>${esc(b.phone)}</dd></div>
         <div><dt>ელ-ფოსტა</dt><dd>${b.email ? `<a href="mailto:${esc(b.email)}">${esc(b.email)}</a>` : '—'}${b.verifiedVia ? `<span class="ver">✓ დადასტურებულია ${b.verifiedVia === 'google' ? 'Google-ით' : 'ბმულით'}</span>` : ''}</dd></div>
         <div><dt>გაგზავნილია</dt><dd>${esc(fmt(b.createdAt))}</dd></div>
         ${b.parentName ? `<div><dt>მშობელი / მეურვე</dt><dd>${esc(b.parentName)}</dd></div><div><dt>მშობლის ტელეფონი</dt><dd>${esc(b.parentPhone)}</dd></div>` : ''}
-        <div class="wide"><dt>მონაწილის კომენტარი</dt><dd>${b.notes ? esc(b.notes).replace(/\n/g, '<br>') : '—'}</dd></div>
+        ${(b.answers || []).map(x => `<div class="wide"><dt>${esc(x.q)}</dt><dd>${x.a ? esc(x.a).replace(/\n/g, '<br>') : '—'}</dd></div>`).join('')}
+        <div class="wide"><dt>სხვა კომენტარი</dt><dd>${b.notes ? esc(b.notes).replace(/\n/g, '<br>') : '—'}</dd></div>
       </dl>
       <form id="bk" class="stack">
         <div class="f"><span>სტატუსი</span><div class="seg">${Object.entries(STATUS).map(([k, l]) => `<label><input type="radio" name="status" value="${k}"${b.status === k ? ' checked' : ''}><span class="bs-${k}">${l}</span></label>`).join('')}</div></div>
@@ -303,9 +335,10 @@
   }
 
   function exportCsv() {
-    const head = ['ბანაკი', 'სახელი და გვარი', 'ასაკი', 'ტელეფონი', 'ელ-ფოსტა', 'დადასტურება', 'მშობელი', 'მშობლის ტელ.', 'კომენტარი', 'სტატუსი', 'შენიშვნა', 'თარიღი'];
+    const qs = [...new Set(state.bookings.flatMap(b => (b.answers || []).map(x => x.q)))];
+    const head = ['ბანაკი', 'სახელი და გვარი', 'დაბადების თარიღი', 'ასაკი', 'ტელეფონი', 'ელ-ფოსტა', 'დადასტურება', 'მშობელი', 'მშობლის ტელ.', ...qs, 'კომენტარი', 'სტატუსი', 'შენიშვნა', 'თარიღი'];
     const q = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-    const rows = state.bookings.map(b => [b.campTitle, b.name, b.age, b.phone, b.email, b.verifiedVia === 'google' ? 'Google' : (b.verifiedVia ? 'ბმული' : ''), b.parentName, b.parentPhone, b.notes, STATUS[b.status], b.adminNote, fmt(b.createdAt)].map(q).join(','));
+    const rows = state.bookings.map(b => { const ans = Object.fromEntries((b.answers || []).map(x => [x.q, x.a])); return [b.campTitle, b.name, b.birthDate || '', b.age, b.phone, b.email, b.verifiedVia === 'google' ? 'Google' : (b.verifiedVia ? 'ბმული' : ''), b.parentName, b.parentPhone, ...qs.map(k => ans[k] || ''), b.notes, STATUS[b.status], b.adminNote, fmt(b.createdAt)].map(q).join(','); });
     const blob = new Blob(['﻿' + [head.map(q).join(','), ...rows].join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'javshnebi-' + new Date().toISOString().slice(0, 10) + '.csv'; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -338,6 +371,11 @@
         <label class="f"><span>სრული აღწერა</span><textarea name="description" rows="5">${v('description')}</textarea></label>
         <label class="f"><span>ფასში შედის (თითო ხაზზე ერთი)</span><textarea name="includes" rows="4">${v('includes')}</textarea></label>
         <label class="f"><span>პროგრამა (თითო ხაზზე ერთი დღე)</span><textarea name="program" rows="5">${v('program')}</textarea></label>
+        <label class="f"><span>ინფორმაცია და წესები (რა წამოიღონ, რა იკრძალება, გასვლის დრო...). სათაური „:“-ით მთავრდება, სია „- “-ით იწყება</span><textarea name="info" rows="12">${v('info')}</textarea></label>
+        <div class="f"><span>რეგისტრაციის კითხვები</span>
+          <div class="qed" id="qed"></div>
+          <button type="button" class="b b-line" id="q-add">${icon(I.plus)}<span>კითხვის დამატება</span></button>
+        </div>
         <div class="row2">
           <label class="f"><span>რიგითობა</span><input type="number" name="order" value="${v('order')}"></label>
           <label class="switch" style="align-self:end;margin-bottom:12px"><input type="checkbox" name="featured"${c.featured ? ' checked' : ''}><span>მთავარ გვერდზე</span></label>
@@ -345,6 +383,28 @@
         <div class="row-end">${isNew ? '' : `<button type="button" class="b b-danger" id="cf-del">${icon(I.trash)}<span>წაშლა</span></button>`}<button class="b b-dark" type="submit">შენახვა</button></div>
       </form>`);
     const f = $('#cf');
+    let questions = (c.questions || []).map(q => Object.assign({}, q));
+    const drawQ = () => {
+      $('#qed').innerHTML = questions.length ? questions.map((q, i) => `
+        <div class="qrow" data-i="${i}">
+          <textarea rows="2" data-k="label" placeholder="კითხვის ტექსტი">${esc(q.label)}</textarea>
+          <div class="qopts">
+            <select data-k="type"><option value="short"${q.type === 'short' ? ' selected' : ''}>მოკლე პასუხი</option><option value="long"${q.type !== 'short' ? ' selected' : ''}>გრძელი პასუხი</option></select>
+            <label class="switch sm"><input type="checkbox" data-k="required"${q.required ? ' checked' : ''}><span>სავალდებულო</span></label>
+            <span class="qmove"><button type="button" class="icon-b" data-up aria-label="ზემოთ"${i === 0 ? ' disabled' : ''}>↑</button><button type="button" class="icon-b" data-down aria-label="ქვემოთ"${i === questions.length - 1 ? ' disabled' : ''}>↓</button><button type="button" class="icon-b" data-rm aria-label="წაშლა">${icon(I.trash)}</button></span>
+          </div>
+        </div>`).join('') : '<p class="muted" style="margin:0">კითხვები არ არის. ფორმაში იქნება მხოლოდ სახელი, დაბადების თარიღი და ტელეფონი.</p>';
+      $$('.qrow', $('#qed')).forEach(row => {
+        const q = questions[+row.dataset.i];
+        $$('[data-k]', row).forEach(el => el.oninput = el.onchange = () => { q[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.value; });
+        const mv = (d) => { const i = +row.dataset.i, j = i + d; [questions[i], questions[j]] = [questions[j], questions[i]]; drawQ(); };
+        $('[data-up]', row).onclick = () => mv(-1);
+        $('[data-down]', row).onclick = () => mv(1);
+        $('[data-rm]', row).onclick = () => { if (!q.label || confirm('წავშალო ეს კითხვა?')) { questions.splice(+row.dataset.i, 1); drawQ(); } };
+      });
+    };
+    drawQ();
+    $('#q-add').onclick = () => { questions.push({ id: 'q' + Store.uid().slice(-6), label: '', type: 'long', required: true }); drawQ(); const t = $$('.qrow textarea', $('#qed')).pop(); t && t.focus(); };
     f.onsubmit = async (e) => {
       e.preventDefault();
       const g = (n) => f.elements[n].value.trim(), num = (n) => g(n) === '' ? null : Number(g(n));
@@ -354,7 +414,8 @@
         title: g('title'), season: g('season'), location: g('location'), status: f.status.value,
         start: g('start'), end: g('end'), datesText: g('datesText'), ageMin: num('ageMin'), ageMax: num('ageMax'), price: num('price'),
         summary: g('summary'), description: f.description.value.trim(), includes: f.includes.value.trim(), program: f.program.value.trim(),
-        order: num('order') ?? 9, featured: f.featured.checked
+        order: num('order') ?? 9, featured: f.featured.checked,
+        info: f.info.value.trim(), questions: questions.map(q => ({ id: q.id, label: String(q.label || '').trim(), type: q.type === 'short' ? 'short' : 'long', required: !!q.required })).filter(q => q.label)
       };
       await guard(() => Store.saveCamp(data), 'ბანაკი შენახულია');
       views.camps(); closeSheet();
@@ -370,6 +431,14 @@
   let started = false;
   async function start() {
     if (started) return; started = true;
+    const me = await Store.whoami().catch(() => null);
+    if (!me || me.denied) {
+      started = false;
+      await Store.logout().catch(() => {});
+      loginView(`${me && me.email ? me.email + ' — ' : ''}ამ ანგარიშს ადმინ პანელზე წვდომა არ აქვს. სთხოვე ადმინს, „გუნდში“ დაგამატოს.`);
+      return;
+    }
+    state.me = me;
     try { await Store.seed(); } catch (e) { console.warn('seed', e); }
     shell();
   }

@@ -2,23 +2,22 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ▼ ადმინების ელ-ფოსტები — ჩაწერეთ თქვენი (Firebase Authentication-ში დამატებული)
-    function isAdmin() {
+    function isOwner() {
       return request.auth != null
         && request.auth.token.email in ['admin@example.com'];
     }
+    function isAdmin() {
+      return isOwner() || (request.auth != null
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())));
+    }
 
-    // საიტის შიგთავსი: ყველას შეუძლია წაკითხვა, შეცვლა — მხოლოდ ადმინს
     match /site/{doc}     { allow read: if true; allow write: if isAdmin(); }
     match /camps/{id}     { allow read: if true; allow write: if isAdmin(); }
     match /faq/{id}       { allow read: if true; allow write: if isAdmin(); }
     match /gallery/{id}   { allow read: if true; allow write: if isAdmin(); }
+    match /admins/{email} { allow read: if isAdmin(); allow write: if isOwner(); }
 
-    // ჯავშნები
-    //  • ახალი ჯავშანი შეუძლია მხოლოდ იმას, ვინც ელ-ფოსტა დაადასტურა (Google ან ბმული)
-    //  • ერთ ელ-ფოსტაზე ერთ ბანაკზე — ერთი ჯავშანი (დოკუმენტის ID = ბანაკი__ელფოსტა,
-    //    არსებულის გადაწერა კი მხოლოდ ადმინს შეუძლია)
-    //  • ნახვა, შეცვლა, წაშლა — მხოლოდ ადმინს
     match /bookings/{id} {
       allow read, update, delete: if isAdmin();
       allow create: if request.auth != null
@@ -27,11 +26,13 @@ service cloud.firestore {
         && id == request.resource.data.campId + '__' + request.auth.token.email.lower()
         && exists(/databases/$(database)/documents/camps/$(request.resource.data.campId))
         && get(/databases/$(database)/documents/camps/$(request.resource.data.campId)).data.status == 'open'
-        && request.resource.data.keys().hasOnly(['campId','campTitle','name','age','phone','email','verifiedVia','parentName','parentPhone','notes','status','adminNote','createdAt'])
+        && request.resource.data.keys().hasOnly(['campId','campTitle','name','age','birthDate','answers','phone','email','verifiedVia','parentName','parentPhone','notes','status','adminNote','createdAt'])
         && request.resource.data.verifiedVia in ['google', 'email']
         && request.resource.data.name is string && request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 120
         && request.resource.data.phone is string && request.resource.data.phone.size() >= 9 && request.resource.data.phone.size() <= 30
         && request.resource.data.age is int && request.resource.data.age >= 5 && request.resource.data.age <= 99
+        && request.resource.data.birthDate is string && request.resource.data.birthDate.size() == 10
+        && request.resource.data.answers is list && request.resource.data.answers.size() <= 30
         && request.resource.data.campId is string && request.resource.data.campId.size() <= 80
         && request.resource.data.campTitle is string && request.resource.data.campTitle.size() <= 200
         && request.resource.data.parentName is string && request.resource.data.parentName.size() <= 120

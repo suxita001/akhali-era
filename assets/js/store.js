@@ -34,7 +34,16 @@
         summary: 'ხუთი დღე ბაკურიანის თოვლში.',
         description: 'ხუთი დღე ბაკურიანის თოვლიან მთებში. აქტივობები ღია ცის ქვეშ, საღამოები ერთად, თამაშები და საუბრები.\n\n(დეტალური აღწერა იცვლება ადმინ პანელიდან.)',
         includes: 'განთავსება\nკვება\nაქტივობები და თამაშები\nლიდერების გუნდი მთელი ბანაკის განმავლობაში',
-        program: 'ჩასვლა და გაცნობა\nაქტივობები თოვლში\nლაშქრობა\nთამაშები და საღამოს პროგრამა\nდამშვიდობება'
+        program: 'ჩასვლა და გაცნობა\nაქტივობები თოვლში\nლაშქრობა\nთამაშები და საღამოს პროგრამა\nდამშვიდობება',
+        info: '2027 წლის 1–5 მარტს ბანაკი „ახალი ერა“ 15–25 წლის ახალგაზრდებს ბაკურიანში ელოდება.\n\nგთხოვთ, თან იქონიოთ:\n- თეთრეული და ფანარი\n- პირადი ჰიგიენის ნივთები\n- პლედი (აუცილებელია)\n- თბილი ტანსაცმელი: ქურთუკი, ქუდი, ხელთათმანები, შარფი\n- წყალგაუმტარი ფეხსაცმელი თოვლისთვის\n- სპორტული ტანსაცმელი აქტივობებისთვის\n- საღამოს პროგრამისთვის კლასიკური ჩაცმულობა (შავ-თეთრი)\n- პატარა უნივერსალური საჩუქარი, რომელიც ერთ-ერთ თამაშში გამოგვადგება\n\nსაგზური:\n- ღირებულება: 260 ლარი (რა შედის ფასში — დაზუსტდება)\n- გასვლის დრო და ადგილი — დაზუსტდება\n- თანხის შემოტანის ბოლო ვადა — დაზუსტდება\n\nბანაკის ტერიტორიაზე იკრძალება:\n- სიგარეტის მოწევა\n- ალკოჰოლი\n- ნარკოტიკული საშუალებები\n- ბანაკის ტერიტორიის დატოვება ნებართვის გარეშე\n- ბიჭების და გოგოების ერთმანეთის საძინებლებში შესვლა\n- ყველა მონაწილე ვალდებულია მონაწილეობა მიიღოს ბანაკის პროგრამაში\n\nგაფრთხილება: ყველა მონაწილე ვალდებულია დაემორჩილოს დღის განრიგს. დაუმორჩილებლობის ან რაიმე დარღვევის შემთხვევაში მონაწილე დაუყოვნებლივ დატოვებს ბანაკს, თანხის დაბრუნების გარეშე.\n\nპირველ დღეს გთხოვთ, იყოთ სპორტულად ჩაცმული.',
+        questions: [
+          { id: 'q1', label: 'ოჯახის წევრები', type: 'short', required: true },
+          { id: 'q2', label: 'გაქვს/გქონია თუ არა ჯანმრთელობის პრობლემები (ქრონიკული დაავადებები, გადატანილი ავადმყოფობა, ოპერაციის ან ტრავმის შედეგები, ძილის თავისებურებები და სხვა)? თუ „კი“, რა სახის?', type: 'long', required: true },
+          { id: 'q3', label: 'გაქვს/გქონია თუ არა პრობლემები სპორტული დატვირთვის დროს? თუ „კი“, რა სახის?', type: 'long', required: true },
+          { id: 'q4', label: 'გაქვს/გქონია თუ არა ალერგია საკვებზე, წამლებზე, მცენარეებზე, ცხოველებზე ან სხვა რამეზე? თუ „კი“, რა სახის?', type: 'long', required: true },
+          { id: 'q5', label: 'თამაშობ თუ არა ვიდეოთამაშებს და რომელს?', type: 'long', required: true },
+          { id: 'q6', label: 'რას დაამატებდი შენი შესაძლებლობების და ინტერესების შესახებ?', type: 'long', required: true }
+        ]
       },
       {
         id: 'summer-2027', season: 'summer', title: 'ზაფხულის ბანაკი', location: '',
@@ -42,7 +51,15 @@
         status: 'soon', featured: false, order: 2,
         summary: 'ტყე, კარვები და გრძელი საღამოები.',
         description: 'ზაფხულის ბანაკის დეტალები მალე გამოქვეყნდება.',
-        includes: '', program: ''
+        includes: '', program: '', info: '',
+        questions: [
+          { id: 'q1', label: 'ოჯახის წევრები', type: 'short', required: true },
+          { id: 'q2', label: 'გაქვს/გქონია თუ არა ჯანმრთელობის პრობლემები (ქრონიკული დაავადებები, გადატანილი ავადმყოფობა, ოპერაციის ან ტრავმის შედეგები, ძილის თავისებურებები და სხვა)? თუ „კი“, რა სახის?', type: 'long', required: true },
+          { id: 'q3', label: 'გაქვს/გქონია თუ არა პრობლემები სპორტული დატვირთვის დროს? თუ „კი“, რა სახის?', type: 'long', required: true },
+          { id: 'q4', label: 'გაქვს/გქონია თუ არა ალერგია საკვებზე, წამლებზე, მცენარეებზე, ცხოველებზე ან სხვა რამეზე? თუ „კი“, რა სახის?', type: 'long', required: true },
+          { id: 'q5', label: 'თამაშობ თუ არა ვიდეოთამაშებს და რომელს?', type: 'long', required: true },
+          { id: 'q6', label: 'რას დაამატებდი შენი შესაძლებლობების და ინტერესების შესახებ?', type: 'long', required: true }
+        ]
       }
     ],
     faq: [
@@ -64,10 +81,15 @@
   function demoDb() {
     let db = null;
     try { db = JSON.parse(localStorage.getItem(KEY)); } catch (e) { /* ignore */ }
+    if (db) demoMigrate(db);
     if (!db) {
       db = { content: clone(DEFAULTS.content), camps: clone(DEFAULTS.camps), faq: clone(DEFAULTS.faq), gallery: [], bookings: [] };
       demoSave(db);
     }
+    return db;
+  }
+  function demoMigrate(db) {
+    db.camps.forEach(c => { const d = DEFAULTS.camps.find(x => x.id === c.id); if (!('questions' in c)) { c.questions = d ? clone(d.questions) : []; c.info = c.info || (d ? d.info : ''); } });
     return db;
   }
   function demoSave(db) {
@@ -98,6 +120,11 @@
     async updateBooking(id, patch) { const db = demoDb(); const b = db.bookings.find(x => x.id === id); if (b) Object.assign(b, patch); demoSave(db); },
     async deleteBooking(id) { const db = demoDb(); db.bookings = db.bookings.filter(x => x.id !== id); demoSave(db); },
     async login(email, pw) { if (pw !== 'demo') throw new Error('პაროლი არასწორია. დემო რეჟიმში პაროლია: demo'); sessionStorage.setItem('ae-demo-admin', '1'); },
+    async loginGoogle() { sessionStorage.setItem('ae-demo-admin', '1'); },
+    async whoami() { return { email: 'demo', owner: true }; },
+    async admins() { return (demoDb().admins || []).slice(); },
+    async addAdmin(email) { const db = demoDb(); db.admins = db.admins || []; if (!db.admins.some(a => a.email === email)) db.admins.push({ email, added: Date.now() }); demoSave(db); },
+    async removeAdmin(email) { const db = demoDb(); db.admins = (db.admins || []).filter(a => a.email !== email); demoSave(db); },
     async logout() { sessionStorage.removeItem('ae-demo-admin'); },
     onAuth(cb) { cb(sessionStorage.getItem('ae-demo-admin') ? { email: 'demo' } : null); },
     async seed() {},
@@ -170,11 +197,38 @@
       catch (e) { throw new Error(e.code === 'auth/too-many-requests' ? 'ძალიან ბევრი მცდელობა. სცადე მოგვიანებით.' : 'ელ-ფოსტა ან პაროლი არასწორია.'); }
     },
     async logout() { const { auth } = await fb(); await auth.signOut(); },
+    async loginGoogle() {
+      const { auth } = await fb();
+      const p = new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' });
+      try { await auth.signInWithPopup(p); }
+      catch (e) {
+        if (['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(e.code)) throw fail('cancelled', 'შესვლა გაუქმდა.');
+        if (e.code === 'auth/unauthorized-domain') throw new Error('ეს საიტი Firebase-ში ჯერ არ არის დაშვებული (Authorized domains).');
+        throw new Error('Google-ით შესვლა ვერ მოხერხდა.');
+      }
+    },
+    /* is the signed-in person an admin? owner = the email written in firestore.rules */
+    async whoami() {
+      const { auth, db } = await fb(); const u = auth.currentUser; if (!u) return null;
+      const email = (u.email || '').toLowerCase();
+      try { await db.collection('bookings').limit(1).get(); }
+      catch (e) { return { email, denied: true }; }
+      let owner = false;
+      try { await db.collection('admins').doc('__owner_check__').set({ check: true }); await db.collection('admins').doc('__owner_check__').delete(); owner = true; } catch (e) { owner = false; }
+      return { email, owner };
+    },
+    async admins() { const { db } = await fb(); return docs(await db.collection('admins').get()).filter(a => a.id !== '__owner_check__').map(a => ({ email: a.id, added: ts(a.added) })); },
+    async addAdmin(email) { const { db } = await fb(); await db.collection('admins').doc(email.toLowerCase()).set({ added: Date.now() }); },
+    async removeAdmin(email) { const { db } = await fb(); await db.collection('admins').doc(email.toLowerCase()).delete(); },
     onAuth(cb) { fb().then(({ auth }) => auth.onAuthStateChanged(u => cb(u ? { email: u.email } : null))).catch(() => cb(null)); },
     /* first admin login on an empty project: copy starter content into Firestore */
     async seed() {
       const { db } = await fb();
       if ((await db.collection('camps').limit(1).get()).empty) for (const c of DEFAULTS.camps) { const d = Object.assign({}, c); delete d.id; await db.collection('camps').doc(c.id).set(d); }
+      else for (const c of DEFAULTS.camps) {
+        const ref = db.collection('camps').doc(c.id), d = await ref.get();
+        if (d.exists && !('questions' in d.data())) await ref.set({ questions: c.questions, info: d.data().info || c.info || '' }, { merge: true });
+      }
       if ((await db.collection('faq').limit(1).get()).empty) for (const f of DEFAULTS.faq) { const d = Object.assign({}, f); delete d.id; await db.collection('faq').doc(f.id).set(d); }
       if (!(await db.doc('site/content').get()).exists) await db.doc('site/content').set(DEFAULTS.content);
     },

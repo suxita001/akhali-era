@@ -92,6 +92,25 @@
   }
   const MONTHS = ['იანვარი', 'თებერვალი', 'მარტი', 'აპრილი', 'მაისი', 'ივნისი', 'ივლისი', 'აგვისტო', 'სექტემბერი', 'ოქტომბერი', 'ნოემბერი', 'დეკემბერი'];
   const parse = (d) => { if (!d) return null; const [y, m, day] = d.split('-').map(Number); return new Date(y, m - 1, day); };
+  /* age on the first day of the camp (or today, if the date isn't set) */
+  function ageAt(birth, c) {
+    const b = parse(birth); if (!b || isNaN(b)) return null;
+    const at = parse(c && c.start) || new Date();
+    let a = at.getFullYear() - b.getFullYear();
+    if (at.getMonth() < b.getMonth() || (at.getMonth() === b.getMonth() && at.getDate() < b.getDate())) a--;
+    return a;
+  }
+  const geDate = (d) => { const x = parse(d); return x ? x.getDate() + ' ' + MONTHS[x.getMonth()] + ', ' + x.getFullYear() : ''; };
+  /* plain text → headings, bullet lists and paragraphs (admin writes plain text) */
+  function richText(t) {
+    return String(t || '').trim().split(/\n\s*\n/).map(block => {
+      const ls = block.split('\n').map(x => x.trim()).filter(Boolean);
+      let head = '';
+      if (ls.length > 1 && /:$/.test(ls[0])) head = `<h3>${esc(ls.shift().replace(/:$/, ''))}</h3>`;
+      if (ls.length && ls.every(x => /^[-•·*]\s*/.test(x))) return head + '<ul>' + ls.map(x => `<li>${esc(x.replace(/^[-•·*]\s*/, ''))}</li>`).join('') + '</ul>';
+      return head + ls.map(x => { const m = x.match(/^([^:]{2,24}):\s+(.+)$/); return m ? `<p><b>${esc(m[1])}:</b> ${esc(m[2])}</p>` : `<p>${esc(x)}</p>`; }).join('');
+    }).join('');
+  }
 
   function seasonCard(c, tag = 'h3') {
     const st = campState(c);
@@ -171,6 +190,7 @@
           <div class="prose">${paras(c.description)}</div>
           ${inc.length ? `<div class="block"><h2 class="h3">ფასში შედის</h2><ul class="ticks">${inc.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>` : ''}
           ${lines(c.program).length ? `<div class="block"><h2 class="h3">პროგრამა</h2>${programList(c, true)}</div>` : ''}
+          ${c.info ? `<div class="block"><h2 class="h3">რა უნდა იცოდე</h2><div class="rich">${richText(c.info)}</div></div>` : ''}
           ${st !== 'open' ? `<div class="block"><p class="muted">${st === 'soon' ? 'რეგისტრაცია ჯერ არ დაწყებულა. ' : ''}კითხვებისთვის <a class="link" href="faq.html#contact">დაგვიკავშირდი</a>.</p></div>` : ''}
         </div>
         ${pass(c)}`;
@@ -275,6 +295,17 @@
       function renderForm() {
         draft.step = 'form'; save(draft);
         const c = camp();
+        draft.answers = draft.answers || {};
+        const qs = (x) => (x.questions || []).filter(q => q && q.label);
+        const questionsHtml = (x) => qs(x).map(q => `
+                  <label class="field full"><span>${esc(q.label)}${q.required ? '' : ' <em>(არასავალდებულო)</em>'}</span>
+                    ${q.type === 'long'
+                      ? `<textarea name="q_${esc(q.id)}" maxlength="2000" rows="3">${esc(draft.answers[q.id] || '')}</textarea>`
+                      : `<input name="q_${esc(q.id)}" maxlength="300" value="${esc(draft.answers[q.id] || '')}">`}
+                    <small class="err"></small></label>`).join('');
+        const infoHtml = (x) => x.info ? `
+              <details class="camp-info"${draft.infoOpen ? ' open' : ''}><summary>ბანაკის ინფორმაცია და წესები <span>წაიკითხე რეგისტრაციამდე</span></summary><div class="rich">${richText(x.info)}</div></details>` : '';
+        const today = new Date().toISOString().slice(0, 10);
         root.innerHTML = `
           <div class="book-grid">
             <div id="book-pass">${pass(c, { cta: false })}</div>
@@ -282,11 +313,12 @@
               <ol class="steps" aria-label="ნაბიჯები"><li aria-current="step">მონაცემები</li><li>დადასტურება</li></ol>
               <fieldset><legend>ბანაკი</legend>
                 <div class="picks">${camps.map(x => `<label class="pick"><input type="radio" name="camp" value="${esc(x.id)}"${x.id === c.id ? ' checked' : ''}><span><b>${esc(x.title)}</b><em>${esc(price(x))}</em><small>${esc(campDates(x))}${x.location ? ', ' + esc(x.location) : ''}</small></span></label>`).join('')}</div>
+                <div id="info-slot">${infoHtml(c)}</div>
               </fieldset>
               <fieldset><legend>მონაწილე</legend>
                 <div class="fields">
                   <label class="field full"><span>სახელი და გვარი</span><input name="name" autocomplete="name" maxlength="120" value="${esc(draft.name)}"><small class="err"></small></label>
-                  <label class="field"><span>ასაკი</span><input name="age" type="number" inputmode="numeric" min="5" max="99" value="${esc(draft.age)}"><small class="err"></small></label>
+                  <label class="field"><span>დაბადების თარიღი</span><input name="birthDate" type="date" min="1940-01-01" max="${today}" value="${esc(draft.birthDate)}"><small class="err"></small></label>
                   <label class="field"><span>მობილური</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="555 12 34 56" value="${esc(draft.phone)}"><small class="err"></small></label>
                 </div>
               </fieldset>
@@ -297,11 +329,15 @@
                   <label class="field"><span>მობილური</span><input name="parentPhone" type="tel" inputmode="tel" placeholder="555 12 34 56" value="${esc(draft.parentPhone)}"><small class="err"></small></label>
                 </div>
               </fieldset>
+              <fieldset id="questions"${qs(c).length ? '' : ' hidden'}><legend>რამდენიმე კითხვა</legend>
+                <div class="fields" id="q-slot">${questionsHtml(c)}</div>
+              </fieldset>
               <fieldset><legend>დამატებით</legend>
-                <label class="field"><span>კომენტარი <em>(ალერგია, კვება, კითხვა)</em></span><textarea name="notes" maxlength="1500">${esc(draft.notes)}</textarea><small class="err"></small></label>
+                <label class="field"><span>სხვა კომენტარი <em>(არასავალდებულო)</em></span><textarea name="notes" maxlength="1500">${esc(draft.notes)}</textarea><small class="err"></small></label>
                 <label class="hp" aria-hidden="true">ვებსაიტი <input name="website" tabindex="-1" autocomplete="off"></label>
               </fieldset>
-              <div>
+              <div class="consents">
+                <label class="consent" id="rules-consent"${c.info ? '' : ' hidden'}><input type="checkbox" name="rules"${draft.rules ? ' checked' : ''}><span>გავეცანი ბანაკის ინფორმაციას და წესებს და ვეთანხმები მათ.</span></label>
                 <label class="consent"><input type="checkbox" name="consent"${draft.consent ? ' checked' : ''}><span>ვეთანხმები, რომ ჩემს მონაცემებს გამოიყენებენ მხოლოდ ბანაკთან დაკავშირებით დასაკავშირებლად.</span></label>
                 <small class="err" id="consent-err"></small>
               </div>
@@ -309,34 +345,55 @@
             </form>
           </div>`;
         const form = $('#form'), f = (n) => form.elements[n];
-        const syncGuardian = () => { const a = parseInt(f('age').value, 10); $('#guardian').hidden = !(a > 0 && a < 18); };
+        const ageNow = () => ageAt(f('birthDate').value, camp());
+        const syncGuardian = () => { const a = ageNow(); $('#guardian').hidden = !(a !== null && a < 18); };
         syncGuardian();
-        const keep = () => { ['name', 'age', 'phone', 'parentName', 'parentPhone', 'notes'].forEach(n => draft[n] = f(n).value); draft.consent = f('consent').checked; draft.campId = form.elements.camp.value; save(draft); };
+        const keep = () => {
+          ['name', 'birthDate', 'phone', 'parentName', 'parentPhone', 'notes'].forEach(n => draft[n] = f(n).value);
+          qs(camp()).forEach(q => { const el = f('q_' + q.id); if (el) draft.answers[q.id] = el.value; });
+          draft.consent = f('consent').checked; draft.rules = f('rules').checked; draft.campId = form.elements.camp.value;
+          const d = $('.camp-info', form); draft.infoOpen = d ? d.open : false;
+          save(draft);
+        };
         form.addEventListener('input', () => { syncGuardian(); keep(); });
-        form.addEventListener('change', e => { keep(); if (e.target.name === 'camp') $('#book-pass').innerHTML = pass(camp(), { cta: false }); });
+        form.addEventListener('change', e => {
+          keep();
+          if (e.target.name === 'camp') {
+            const x = camp();
+            $('#book-pass').innerHTML = pass(x, { cta: false });
+            $('#info-slot').innerHTML = infoHtml(x);
+            $('#q-slot').innerHTML = questionsHtml(x);
+            $('#questions').hidden = !qs(x).length;
+            $('#rules-consent').hidden = !x.info;
+            syncGuardian();
+          }
+        });
+        form.addEventListener('toggle', keep, true);
         ['phone', 'parentPhone'].forEach(n => f(n).addEventListener('blur', () => { const p = normPhone(f(n).value); if (p) { f(n).value = p; keep(); } }));
-        const setErr = (n, msg) => { const el = f(n).closest('.field'); el.classList.toggle('bad', !!msg); el.querySelector('.err').textContent = msg || ''; };
+        const setErr = (n, msg) => { const el = f(n) && f(n).closest('.field'); if (!el) return; el.classList.toggle('bad', !!msg); el.querySelector('.err').textContent = msg || ''; };
 
         form.addEventListener('submit', (e) => {
           e.preventDefault();
           if (f('website').value) { root.innerHTML = '<p class="lead">მადლობა!</p>'; return; }
           keep();
-          const c = camp(), v = (n) => f(n).value.trim(), age = parseInt(v('age'), 10), errs = {};
+          const c = camp(), v = (n) => f(n).value.trim(), age = ageNow(), errs = {};
           if (v('name').length < 3 || !/\s/.test(v('name'))) errs.name = 'ჩაწერე სახელიც და გვარიც';
-          if (!(age >= 5 && age <= 99)) errs.age = 'ჩაწერე ასაკი';
-          else if ((c.ageMin && age < c.ageMin) || (c.ageMax && age > c.ageMax)) errs.age = 'ამ ბანაკის ასაკია ' + ages(c);
+          if (age === null || age < 5 || age > 99) errs.birthDate = 'აირჩიე დაბადების თარიღი';
+          else if ((c.ageMin && age < c.ageMin) || (c.ageMax && age > c.ageMax)) errs.birthDate = `ბანაკის დროს იქნები ${age} წლის. ამ ბანაკის ასაკია ${ages(c)}`;
           const phone = normPhone(v('phone'));
           if (!phone) errs.phone = 'ჩაწერე მობილური, მაგ. 555 12 34 56';
           let pPhone = '';
-          if (age < 18) {
+          if (age !== null && age < 18) {
             if (v('parentName').length < 3) errs.parentName = 'ჩაწერე სახელი და გვარი';
             pPhone = normPhone(v('parentPhone'));
             if (!pPhone) errs.parentPhone = 'ჩაწერე მობილური, მაგ. 555 12 34 56';
             else if (pPhone === phone) errs.parentPhone = 'მშობლის ნომერი მონაწილის ნომრისგან უნდა განსხვავდებოდეს';
           }
-          ['name', 'age', 'phone', 'parentName', 'parentPhone', 'notes'].forEach(n => setErr(n, errs[n]));
-          $('#consent-err').textContent = f('consent').checked ? '' : 'გასაგრძელებლად მონიშნე თანხმობა';
-          if (Object.keys(errs).length || !f('consent').checked) { (form.querySelector('.bad input, .bad textarea') || f('consent')).focus(); return; }
+          qs(c).forEach(q => { if (q.required && !(draft.answers[q.id] || '').trim()) errs['q_' + q.id] = 'ეს კითხვა სავალდებულოა'; });
+          ['name', 'birthDate', 'phone', 'parentName', 'parentPhone', 'notes', ...qs(c).map(q => 'q_' + q.id)].forEach(n => setErr(n, errs[n]));
+          const needRules = !!c.info && !f('rules').checked;
+          $('#consent-err').textContent = needRules ? 'გასაგრძელებლად მონიშნე, რომ გაეცანი ბანაკის წესებს' : (f('consent').checked ? '' : 'გასაგრძელებლად მონიშნე თანხმობა');
+          if (Object.keys(errs).length || needRules || !f('consent').checked) { (form.querySelector('.bad input, .bad textarea') || (needRules ? f('rules') : f('consent'))).focus(); return; }
           Object.assign(draft, { name: v('name').replace(/\s+/g, ' '), age, phone, parentName: age < 18 ? v('parentName') : '', parentPhone: age < 18 ? pPhone : '', notes: v('notes') });
           renderVerify();
           window.scrollTo({ top: $('#book').offsetTop - 100, behavior: 'smooth' });
@@ -358,9 +415,10 @@
                 <div class="review-head"><h2 class="legend">შეამოწმე მონაცემები</h2><button class="link-btn" id="edit">შეცვლა</button></div>
                 <dl class="review">
                   <div><dt>ბანაკი</dt><dd>${esc(c.title)}, ${esc(campDates(c))}</dd></div>
-                  <div><dt>მონაწილე</dt><dd>${esc(draft.name)}, ${esc(draft.age)} წლის</dd></div>
+                  <div><dt>მონაწილე</dt><dd>${esc(draft.name)}, ${esc(geDate(draft.birthDate))} (${esc(draft.age)} წლის)</dd></div>
                   <div><dt>მობილური</dt><dd>${esc(draft.phone)}</dd></div>
                   ${draft.parentName ? `<div><dt>მშობელი</dt><dd>${esc(draft.parentName)}, ${esc(draft.parentPhone)}</dd></div>` : ''}
+                  ${(c.questions || []).filter(q => q && q.label && (draft.answers || {})[q.id]).map(q => `<div><dt>${esc(q.label.length > 60 ? q.label.slice(0, 57) + '…' : q.label)}</dt><dd>${esc(draft.answers[q.id])}</dd></div>`).join('')}
                   ${draft.notes ? `<div><dt>კომენტარი</dt><dd>${esc(draft.notes)}</dd></div>` : ''}
                 </dl>
               </section>
@@ -448,7 +506,8 @@
         const box = $('#verify'); if (box) box.innerHTML = '<div class="waiting"><span class="spinner" aria-hidden="true"></span><p>იგზავნება…</p></div>';
         try {
           await Store.createBooking({
-            campId: c.id, campTitle: c.title + ', ' + campDates(c), name: draft.name, age: Number(draft.age),
+            campId: c.id, campTitle: c.title + ', ' + campDates(c), name: draft.name, age: Number(draft.age), birthDate: draft.birthDate,
+            answers: (c.questions || []).filter(q => q && q.label).map(q => ({ q: q.label, a: String((draft.answers || {})[q.id] || '').trim().slice(0, 2000) })),
             phone: draft.phone, email: v.email, verifiedVia: v.via, parentName: draft.parentName || '', parentPhone: draft.parentPhone || '', notes: draft.notes || ''
           });
           await Store.verify.done();
