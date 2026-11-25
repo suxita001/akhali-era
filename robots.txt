@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /admin.html
+Sitemap: https://suxita001.github.io/akhali-era/sitemap.xml

@@ -491,3 +491,22 @@ button { font: inherit; color: inherit; }
 .consents { display: flex; flex-direction: column; gap: 14px; }
 .consent[hidden] { display: none; }
 .field input[type=date] { min-height: 56px; }
+
+/* ---------------------------------------------------------- reviews + leaders */
+.reviews { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.review-card { margin: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 24px; padding: 30px; border-radius: 26px; background: var(--snow); }
+.review-card blockquote { margin: 0; font-size: 1.15rem; line-height: 1.55; font-weight: 500; }
+.review-card blockquote::before { content: "„"; display: block; height: .55em; font-size: 3.4rem; line-height: .7; font-weight: 800; color: var(--sun); }
+.review-card figcaption { display: flex; flex-direction: column; }
+.review-card figcaption span { color: var(--forest-3); font-size: .92rem; }
+.leaders { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 28px 20px; }
+.leader { margin: 0; }
+.leader img, .leader-ph { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 24px; background: var(--moss); }
+.leader-ph { display: grid; place-items: center; color: var(--pine); }
+.leader-ph .mark { width: 40%; stroke-width: 4; }
+.leader figcaption { padding-top: 14px; }
+.leader b { display: block; font-size: 1.15rem; }
+.leader span { color: var(--pine-deep); font-weight: 600; font-size: .92rem; }
+.leader p { margin: 8px 0 0; color: var(--forest-2); font-size: .95rem; }
+.pass-rows dd.few { color: #b0590c; }
+.wl { color: #b0590c; font-weight: 600; }

@@ -1,7 +1,7 @@
 /* ახალი ერა — საიტის გვერდები */
 (function () {
   'use strict';
-  const { esc, lines, paras, $, $$, campDates, campDays, daysUntil, campState, STATE, SEASON, price, ages, tel, logo, boot } = UI;
+  const { esc, lines, paras, $, $$, campDates, campDays, daysUntil, campState, seatsLeft, withSeats, STATE, SEASON, price, ages, tel, logo, boot } = UI;
   const page = document.body.dataset.page;
   const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   const SVGNS = 'http://www.w3.org/2000/svg';
@@ -83,9 +83,11 @@
         <div><dt>ასაკი</dt><dd>${esc(ages(c) || '—')}</dd></div>
         ${campDays(c) ? `<div><dt>ხანგრძლივობა</dt><dd>${campDays(c)} დღე</dd></div>` : ''}
         <div><dt>ფასი</dt><dd>${esc(price(c))}</dd></div>
+        ${seatsLeft(c) !== null && (st === 'open' || st === 'full') ? `<div><dt>თავისუფალი ადგილი</dt><dd class="${seatsLeft(c) <= 5 ? 'few' : ''}">${seatsLeft(c)} / ${esc(c.capacity)}</dd></div>` : ''}
       </dl>
       ${cta && st === 'open' ? `<a class="btn btn-forest" href="book.html?camp=${encodeURIComponent(c.id)}">ადგილის დაჯავშნა</a>` : ''}
-      ${note && st === 'open' && d > 0 ? `<p class="pass-note">დაწყებამდე ${d} დღე</p>` : ''}
+      ${cta && st === 'full' ? `<a class="btn btn-line" href="book.html?camp=${encodeURIComponent(c.id)}">მოლოდინის სიაში ჩაწერა</a>` : ''}
+      ${note && (st === 'open' || st === 'full') && d > 0 ? `<p class="pass-note">${st === 'full' ? 'ადგილი გათავისუფლდება — დაგიკავშირდებით რიგის მიხედვით' : 'დაწყებამდე ' + d + ' დღე'}</p>` : ''}
       ${st === 'soon' && note ? '<p class="pass-note">რეგისტრაცია მალე დაიწყება</p>' : ''}
       <div class="pass-foot"><span class="barcode" aria-hidden="true"></span><span>AE-${esc(String(c.id).slice(0, 14).toUpperCase())}</span></div>
     </article>`;
@@ -142,7 +144,7 @@
   /* ---------- pages ---------- */
   const pages = {
     async home(content) {
-      const [camps, faq, photos] = await Promise.all([Store.camps(), Store.faq(), Store.gallery().catch(() => [])]);
+      const [camps, faq, photos, reviews] = await Promise.all([Store.camps().then(withSeats), Store.faq(), Store.gallery().catch(() => []), Store.list('reviews')]);
       const featured = camps.find(c => c.featured) || camps.find(c => campState(c) === 'open') || camps[0];
       const words = content.siteName.trim().split(/\s+/);
       $('#hero-title').innerHTML = words.map(w => `<span>${esc(w)}</span>`).join('');
@@ -167,17 +169,35 @@
       } else $('#photos-sec').remove();
 
       $('#faq').innerHTML = faqList(faq.slice(0, 5));
+
+      if (reviews.length) {
+        $('#reviews').innerHTML = reviews.map(r => `<figure class="review-card"><blockquote>${esc(r.quote)}</blockquote><figcaption><b>${esc(r.name)}</b>${r.detail ? `<span>${esc(r.detail)}</span>` : ''}</figcaption></figure>`).join('');
+      } else $('#reviews-sec').remove();
+
+      /* structured data: lets Google show the camps as events */
+      const base = location.href.replace(/[^/]*$/, '');
+      const events = camps.filter(c => c.start && ['open', 'full', 'soon'].includes(campState(c))).map(c => ({
+        '@type': 'Event', name: c.title + ' — ' + content.siteName, startDate: c.start, endDate: c.end || c.start,
+        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode', eventStatus: 'https://schema.org/EventScheduled',
+        location: { '@type': 'Place', name: c.location || 'საქართველო', address: { '@type': 'PostalAddress', addressLocality: c.location || '', addressCountry: 'GE' } },
+        description: c.summary || content.heroText, image: [base + 'assets/img/og.png'], url: base + 'camp.html?id=' + encodeURIComponent(c.id),
+        organizer: { '@type': 'Organization', name: content.siteName, url: base },
+        offers: c.price ? { '@type': 'Offer', price: String(c.price), priceCurrency: 'GEL', url: base + 'book.html?camp=' + encodeURIComponent(c.id), availability: campState(c) === 'full' ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock' } : undefined,
+      }));
+      const ld = document.createElement('script'); ld.type = 'application/ld+json';
+      ld.textContent = JSON.stringify({ '@context': 'https://schema.org', '@graph': [{ '@type': 'Organization', name: content.siteName, url: base, logo: base + 'assets/img/icon-512.png', email: content.email || undefined, telephone: content.phone || undefined, sameAs: [content.instagram, content.facebook].filter(Boolean) }, ...events] });
+      document.head.appendChild(ld);
     },
 
     async camps() {
-      const camps = await Store.camps();
+      const camps = await withSeats(await Store.camps());
       headRays($('.head-rays'));
       $('#camp-list').innerHTML = camps.map(c => seasonCard(c, 'h2')).join('');
     },
 
     async camp() {
       const id = new URLSearchParams(location.search).get('id');
-      const camps = await Store.camps();
+      const camps = await withSeats(await Store.camps());
       const c = camps.find(x => x.id === id) || camps.find(x => x.featured) || camps[0];
       if (!c) return;
       document.title = c.title + ' — ' + document.title.split(' — ').pop();
@@ -203,6 +223,11 @@
       $('#about-mark').innerHTML = logo();
       $('#about-text').innerHTML = paras(content.aboutText);
       $('#values').innerHTML = (content.values || []).map(v => `<div class="value"><h3>${esc(v.title)}</h3><p>${esc(v.text)}</p></div>`).join('');
+      const [people, reviews] = await Promise.all([Store.list('people'), Store.list('reviews')]);
+      if (people.length) $('#leaders').innerHTML = people.map(p => `<figure class="leader">${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}" loading="lazy">` : `<span class="leader-ph">${logo()}</span>`}<figcaption><b>${esc(p.name)}</b>${p.role ? `<span>${esc(p.role)}</span>` : ''}${p.bio ? `<p>${esc(p.bio)}</p>` : ''}</figcaption></figure>`).join('');
+      else $('#leaders-sec').remove();
+      if (reviews.length) $('#reviews').innerHTML = reviews.map(r => `<figure class="review-card"><blockquote>${esc(r.quote)}</blockquote><figcaption><b>${esc(r.name)}</b>${r.detail ? `<span>${esc(r.detail)}</span>` : ''}</figcaption></figure>`).join('');
+      else $('#reviews-sec').remove();
     },
 
     async gallery() {
@@ -242,7 +267,7 @@
     },
 
     async book(content) {
-      const camps = (await Store.camps()).filter(c => campState(c) === 'open');
+      const camps = (await withSeats(await Store.camps())).filter(c => ['open', 'full'].includes(campState(c)));
       const root = $('#book');
       $('#book-intro').textContent = content.bookingIntro;
       if (!camps.length) {
@@ -312,7 +337,7 @@
             <form class="form" id="form" novalidate>
               <ol class="steps" aria-label="ნაბიჯები"><li aria-current="step">მონაცემები</li><li>დადასტურება</li></ol>
               <fieldset><legend>ბანაკი</legend>
-                <div class="picks">${camps.map(x => `<label class="pick"><input type="radio" name="camp" value="${esc(x.id)}"${x.id === c.id ? ' checked' : ''}><span><b>${esc(x.title)}</b><em>${esc(price(x))}</em><small>${esc(campDates(x))}${x.location ? ', ' + esc(x.location) : ''}</small></span></label>`).join('')}</div>
+                <div class="picks">${camps.map(x => `<label class="pick"><input type="radio" name="camp" value="${esc(x.id)}"${x.id === c.id ? ' checked' : ''}><span><b>${esc(x.title)}</b><em>${esc(price(x))}</em><small>${esc(campDates(x))}${x.location ? ', ' + esc(x.location) : ''}${campState(x) === 'full' ? ' · <b class="wl">ადგილები შევსებულია — მოლოდინის სია</b>' : ''}</small></span></label>`).join('')}</div>
                 <div id="info-slot">${infoHtml(c)}</div>
               </fieldset>
               <fieldset><legend>მონაწილე</legend>
@@ -505,13 +530,13 @@
         const c = camp();
         const box = $('#verify'); if (box) box.innerHTML = '<div class="waiting"><span class="spinner" aria-hidden="true"></span><p>იგზავნება…</p></div>';
         try {
-          await Store.createBooking({
+          const res = await Store.createBooking({
             campId: c.id, campTitle: c.title + ', ' + campDates(c), name: draft.name, age: Number(draft.age), birthDate: draft.birthDate,
             answers: (c.questions || []).filter(q => q && q.label).map(q => ({ q: q.label, a: String((draft.answers || {})[q.id] || '').trim().slice(0, 2000) })),
             phone: draft.phone, email: v.email, verifiedVia: v.via, parentName: draft.parentName || '', parentPhone: draft.parentPhone || '', notes: draft.notes || ''
           });
           await Store.verify.done();
-          const done = { name: draft.name, camp: c.title + ', ' + campDates(c), email: v.email };
+          const done = { name: draft.name, camp: c.title + ', ' + campDates(c), email: v.email, waitlist: res && res.status === 'waitlist' };
           clear(); renderDone(done);
         } catch (e) {
           console.error(e);
@@ -529,7 +554,7 @@
         root.innerHTML = `<div class="done">
           <div class="done-mark">${logo()}</div>
           <h1 class="h1">${d ? 'მადლობა, ' + esc(d.name.split(' ')[0]) + '!' : 'ჯავშანი გაგზავნილია'}</h1>
-          <p class="lead" style="margin:0 auto">${elsewhere ? 'ჯავშანი მეორე ჩანართიდან უკვე გაიგზავნა. ეს გვერდი შეგიძლია დახურო.' : esc(content.bookingSuccess)}</p>
+          <p class="lead" style="margin:0 auto">${elsewhere ? 'ჯავშანი მეორე ჩანართიდან უკვე გაიგზავნა. ეს გვერდი შეგიძლია დახურო.' : d && d.waitlist ? 'ადგილები უკვე შევსებულია, ამიტომ <b>მოლოდინის სიაში</b> ჩაგწერეთ. თუ ადგილი გათავისუფლდება, რიგის მიხედვით დაგიკავშირდებით.' : esc(content.bookingSuccess)}</p>
           ${d ? `<dl class="ticket"><dt>ბანაკი</dt><dd>${esc(d.camp)}</dd><dt>დადასტურებული ელ-ფოსტა</dt><dd>${esc(d.email)}</dd></dl>` : ''}
           ${d && content.paymentInfo ? `<div class="prose" style="margin:0 auto 30px;text-align:left">${paras(content.paymentInfo)}</div>` : ''}
           <div><a class="btn btn-line" href="index.html">მთავარ გვერდზე დაბრუნება</a></div>

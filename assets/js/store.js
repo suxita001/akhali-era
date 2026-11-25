@@ -30,7 +30,7 @@
       {
         id: 'winter-2027', season: 'winter', title: 'ზამთრის ბანაკი', location: 'ბაკურიანი',
         start: '2027-03-01', end: '2027-03-05', datesText: '', ageMin: 15, ageMax: 25, price: 260,
-        status: 'open', featured: true, order: 1,
+        status: 'open', featured: true, order: 1, capacity: 0,
         summary: 'ხუთი დღე ბაკურიანის თოვლში.',
         description: 'ხუთი დღე ბაკურიანის თოვლიან მთებში. აქტივობები ღია ცის ქვეშ, საღამოები ერთად, თამაშები და საუბრები.\n\n(დეტალური აღწერა იცვლება ადმინ პანელიდან.)',
         includes: 'განთავსება\nკვება\nაქტივობები და თამაშები\nლიდერების გუნდი მთელი ბანაკის განმავლობაში',
@@ -48,7 +48,7 @@
       {
         id: 'summer-2027', season: 'summer', title: 'ზაფხულის ბანაკი', location: '',
         start: '', end: '', datesText: 'თარიღები მალე გამოცხადდება', ageMin: 15, ageMax: 25, price: null,
-        status: 'soon', featured: false, order: 2,
+        status: 'soon', featured: false, order: 2, capacity: 0,
         summary: 'ტყე, კარვები და გრძელი საღამოები.',
         description: 'ზაფხულის ბანაკის დეტალები მალე გამოქვეყნდება.',
         includes: '', program: '', info: '',
@@ -114,8 +114,18 @@
     async createBooking(b) {
       const db = demoDb(); const id = bookingId(b.campId, b.email);
       if (db.bookings.some(x => x.id === id)) throw fail('duplicate');
-      db.bookings.push(Object.assign({ id, status: 'new', adminNote: '', createdAt: Date.now() }, b)); demoSave(db); return id;
+      const camp = db.camps.find(c => c.id === b.campId) || {}, cap = Number(camp.capacity) || 0;
+      const taken = db.bookings.filter(x => x.campId === b.campId && ['new', 'confirmed', 'paid'].includes(x.status)).length;
+      const status = cap > 0 && taken >= cap ? 'waitlist' : 'new';
+      db.bookings.push(Object.assign({ id, adminNote: '', createdAt: Date.now() }, b, { status })); demoSave(db); return { id, status };
     },
+    async seats() { const db = demoDb(), out = {}; db.bookings.forEach(x => { if (['new', 'confirmed', 'paid'].includes(x.status)) out[x.campId] = (out[x.campId] || 0) + 1; }); return out; },
+    async syncSeats() {},
+    async list(col) { return (demoDb()[col] || []).slice().sort(byOrder); },
+    async saveItem(col, item) { const db = demoDb(); db[col] = db[col] || []; if (!item.id) item.id = uid(); const i = db[col].findIndex(x => x.id === item.id); if (i > -1) db[col][i] = item; else db[col].push(item); demoSave(db); },
+    async removeItem(col, id) { const db = demoDb(); db[col] = (db[col] || []).filter(x => x.id !== id); demoSave(db); },
+    async track(v) { try { const k = 'ae-visits-demo', a = JSON.parse(localStorage.getItem(k) || '[]'); a.push(Object.assign({ t: Date.now() }, v)); localStorage.setItem(k, JSON.stringify(a.slice(-3000))); } catch (e) { /* */ } },
+    async visits(since) { try { return JSON.parse(localStorage.getItem('ae-visits-demo') || '[]').filter(x => x.d >= since); } catch (e) { return []; } },
     async bookings() { return demoDb().bookings.slice().sort((a, b) => b.createdAt - a.createdAt); },
     async updateBooking(id, patch) { const db = demoDb(); const b = db.bookings.find(x => x.id === id); if (b) Object.assign(b, patch); demoSave(db); },
     async deleteBooking(id) { const db = demoDb(); db.bookings = db.bookings.filter(x => x.id !== id); demoSave(db); },
@@ -172,7 +182,10 @@
       const { db } = await fb(); const id = c.id || uid(); const data = Object.assign({}, c); delete data.id;
       const batch = db.batch(); batch.set(db.collection('camps').doc(id), data);
       if (c.featured) (await db.collection('camps').where('featured', '==', true).get()).docs.forEach(d => { if (d.id !== id) batch.update(d.ref, { featured: false }); });
-      await batch.commit(); return id;
+      await batch.commit();
+      const st = db.collection('stats').doc(id);
+      if (!(await st.get()).exists) await st.set({ taken: 0 });
+      return id;
     },
     async deleteCamp(id) { const { db } = await fb(); await db.collection('camps').doc(id).delete(); },
     async faq() { try { const { db } = await fb(); const list = docs(await db.collection('faq').get()); return (list.length ? list : clone(DEFAULTS.faq)).sort(byOrder); } catch (e) { warn(e); return clone(DEFAULTS.faq).sort(byOrder); } },
@@ -182,12 +195,36 @@
     async addPhoto(p) { const { db } = await fb(); await db.collection('gallery').add(Object.assign({ created: Date.now() }, p)); },
     async updatePhoto(id, patch) { const { db } = await fb(); await db.collection('gallery').doc(id).update(patch); },
     async deletePhoto(id) { const { db } = await fb(); await db.collection('gallery').doc(id).delete(); },
+    /* booking + seat counter in one batch; the rules check both. Retries if someone booked at the same moment. */
     async createBooking(b) {
       const { db } = await fb(); const id = bookingId(b.campId, b.email);
-      try { await db.collection('bookings').doc(id).set(Object.assign({}, b, { status: 'new', adminNote: '', createdAt: firebase.firestore.FieldValue.serverTimestamp() })); }
-      catch (e) { if (e.code === 'permission-denied') throw fail('duplicate'); throw e; }
-      return id;
+      const statsRef = db.collection('stats').doc(b.campId), campRef = db.collection('camps').doc(b.campId);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const [cs, ss] = await Promise.all([campRef.get(), statsRef.get()]);
+        const cap = Number(cs.exists && cs.data().capacity) || 0, taken = ss.exists ? Number(ss.data().taken) || 0 : 0;
+        const status = cap > 0 && taken >= cap ? 'waitlist' : 'new';
+        const batch = db.batch();
+        batch.set(db.collection('bookings').doc(id), Object.assign({}, b, { status, adminNote: '', createdAt: firebase.firestore.FieldValue.serverTimestamp() }));
+        if (status === 'new') batch.update(statsRef, { taken: taken + 1 });
+        try { await batch.commit(); return { id, status }; }
+        catch (e) { if (e.code !== 'permission-denied') throw e; await new Promise(r => setTimeout(r, 400 + Math.random() * 600)); }
+      }
+      throw fail('duplicate');
     },
+    async seats() { try { const { db } = await fb(); const out = {}; (await db.collection('stats').get()).docs.forEach(d => out[d.id] = Number(d.data().taken) || 0); return out; } catch (e) { warn(e); return {}; } },
+    /* admin: recount seats from the real bookings (after cancellations etc.) */
+    async syncSeats(bookings, camps) {
+      const { db } = await fb(); const cur = await fire.seats();
+      for (const c of camps) {
+        const n = bookings.filter(x => x.campId === c.id && ['new', 'confirmed', 'paid'].includes(x.status)).length;
+        if (cur[c.id] !== n) await db.collection('stats').doc(c.id).set({ taken: n });
+      }
+    },
+    async list(col) { try { const { db } = await fb(); return docs(await db.collection(col).get()).sort(byOrder); } catch (e) { warn(e); return []; } },
+    async saveItem(col, item) { const { db } = await fb(); const id = item.id || uid(); const d = Object.assign({}, item); delete d.id; await db.collection(col).doc(id).set(d); },
+    async removeItem(col, id) { const { db } = await fb(); await db.collection(col).doc(id).delete(); },
+    async track(v) { try { const { db } = await fb(); await db.collection('visits').add(Object.assign({}, v, { t: firebase.firestore.FieldValue.serverTimestamp() })); } catch (e) { /* stats are best-effort */ } },
+    async visits(since) { const { db } = await fb(); return docs(await db.collection('visits').where('d', '>=', since).get()); },
     async bookings() { const { db } = await fb(); return docs(await db.collection('bookings').orderBy('createdAt', 'desc').get()).map(b => Object.assign(b, { createdAt: ts(b.createdAt) })); },
     async updateBooking(id, patch) { const { db } = await fb(); await db.collection('bookings').doc(id).update(patch); },
     async deleteBooking(id) { const { db } = await fb(); await db.collection('bookings').doc(id).delete(); },
@@ -229,6 +266,8 @@
         const ref = db.collection('camps').doc(c.id), d = await ref.get();
         if (d.exists && !('questions' in d.data())) await ref.set({ questions: c.questions, info: d.data().info || c.info || '' }, { merge: true });
       }
+      const all = docs(await db.collection('camps').get()), bookings = await fire.bookings();
+      await fire.syncSeats(bookings, all);
       if ((await db.collection('faq').limit(1).get()).empty) for (const f of DEFAULTS.faq) { const d = Object.assign({}, f); delete d.id; await db.collection('faq').doc(f.id).set(d); }
       if (!(await db.doc('site/content').get()).exists) await db.doc('site/content').set(DEFAULTS.content);
     },

@@ -4,17 +4,25 @@
   const { esc, $, $$, campDates, campState, STATE, SEASON, price, tel, logo } = UI;
   const app = $('#app');
 
-  const STATUS = { new: 'ახალი', confirmed: 'დადასტურებული', paid: 'გადახდილი', cancelled: 'გაუქმებული' };
+  const STATUS = { new: 'ახალი', confirmed: 'დადასტურებული', paid: 'გადახდილი', waitlist: 'მოლოდინის სია', cancelled: 'გაუქმებული' };
+  const ACTIVE = ['new', 'confirmed', 'paid'];
   const VIEWS = {
     bookings: ['ჯავშნები', '<path d="M3.5 13.5 6 5h12l2.5 8.5V19a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"/><path d="M3.5 13.5H8l1.5 2.5h5l1.5-2.5h4.5"/>'],
+    stats: ['სტატისტიკა', '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
     camps: ['ბანაკები', '<path d="M12 4 3 20h18z"/><path d="M12 11v9M12 11l-3 9"/>'],
     content: ['ტექსტები', '<path d="M5 6h14M5 11h14M5 16h9"/>'],
+    people: ['ლიდერები და შეფასებები', '<path d="M7 7h10M7 11h7"/><path d="M4 4h16v12H9l-5 4z"/>'],
     faq: ['კითხვები', '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/>'],
     gallery: ['გალერეა', '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m4 18 5-5 4 4 2.5-2.5L20 19"/>'],
-    team: ['გუნდი', '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.8c2 .7 3.2 2.4 3.5 5.2"/>'],
+    team: ['ადმინები', '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.8c2 .7 3.2 2.4 3.5 5.2"/>'],
   };
+  const TABBAR = ['bookings', 'camps', 'stats', 'content'];
+  const SHORT = { people: 'ხალხი' };
+
   const icon = (p, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
   const I = {
+    more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+    app: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
     phone: '<path d="M5 3.5h3.5l2 5-2.5 1.5a11 11 0 0 0 6 6l1.5-2.5 5 2V19a2 2 0 0 1-2 2A17 17 0 0 1 3 5.5a2 2 0 0 1 2-2z"/>',
     out: '<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10"/>',
     ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>',
@@ -75,6 +83,7 @@
         <a class="side-brand" href="#bookings">${logo()}<span>ახალი ერა<small>ადმინ პანელი</small></span></a>
         <nav class="side-nav">${Object.entries(VIEWS).map(([k, [l, p]]) => `<a href="#${k}" data-v="${k}">${icon(p)}<span>${l}</span><b class="badge" data-badge="${k}"></b></a>`).join('')}</nav>
         <div class="side-foot">
+          <button class="install-btn" data-install hidden>${icon(I.app)}<span>ტელეფონზე დაყენება</span></button>
           <a href="index.html" target="_blank">${icon(I.ext)}<span>საიტის ნახვა</span></a>
           <button id="logout">${icon(I.out)}<span>გასვლა</span></button>
         </div>
@@ -84,9 +93,19 @@
         ${Store.mode === 'demo' ? '<p class="demo">დემო რეჟიმი — მონაცემები ინახება მხოლოდ ამ ბრაუზერში. რეალური გაშვებისთვის იხილე README.md.</p>' : ''}
         <section class="view" id="view"></section>
       </div>
-      <nav class="tabbar">${Object.entries(VIEWS).map(([k, [l, p]]) => `<a href="#${k}" data-v="${k}">${icon(p)}<span>${l}</span><b class="badge" data-badge="${k}"></b></a>`).join('')}</nav>
+      <nav class="tabbar">${TABBAR.map(k => `<a href="#${k}" data-v="${k}">${icon(VIEWS[k][1])}<span>${SHORT[k] || VIEWS[k][0]}</span><b class="badge" data-badge="${k}"></b></a>`).join('')}<button id="more-btn">${icon(I.more)}<span>მეტი</span></button></nav>
       <div class="sheet-wrap" id="sheet" hidden><div class="sheet-bg" data-close></div><div class="sheet" role="dialog" aria-modal="true"><button class="sheet-x" data-close aria-label="დახურვა">${icon(I.x)}</button><div id="sheet-body"></div></div></div>`;
     $('#logout').onclick = async () => { await Store.logout(); if (Store.mode === 'demo') loginView(); };
+    $('#more-btn').onclick = () => {
+      openSheet(`<h2>მეტი</h2><nav class="more-list">${Object.keys(VIEWS).filter(k => !TABBAR.includes(k)).map(k => `<a href="#${k}">${icon(VIEWS[k][1])}<span>${VIEWS[k][0]}</span></a>`).join('')}
+        <button data-install>${icon(I.app)}<span>ტელეფონზე დაყენება</span></button>
+        <a href="index.html" target="_blank">${icon(I.ext)}<span>საიტის ნახვა</span></a>
+        <button id="logout2">${icon(I.out)}<span>გასვლა</span></button></nav>`);
+      $$('.more-list a[href^="#"]').forEach(a => a.onclick = closeSheet);
+      $('#logout2').onclick = () => $('#logout').click();
+      bindInstall();
+    };
+    bindInstall();
     $$('[data-close]').forEach(el => el.onclick = closeSheet);
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
     addEventListener('hashchange', route);
@@ -100,6 +119,7 @@
     const v = (location.hash.slice(1) || 'bookings');
     state.view = VIEWS[v] ? v : 'bookings';
     $$('[data-v]').forEach(a => a.classList.toggle('on', a.dataset.v === state.view));
+    const mb = $('#more-btn'); if (mb) mb.classList.toggle('on', !TABBAR.includes(state.view));
     $('#title').textContent = VIEWS[state.view][0];
     $('#top-actions').innerHTML = '';
     $('#view').innerHTML = '<div class="loading">იტვირთება…</div>';
@@ -114,6 +134,7 @@
     async bookings() {
       [state.bookings, state.camps] = await Promise.all([Store.bookings(), Store.camps()]);
       badge(state.bookings.filter(b => b.status === 'new').length);
+      Store.syncSeats(state.bookings, state.camps).catch(e => console.warn('seats', e));
       $('#top-actions').innerHTML = `<button class="b b-line" id="csv">${icon(I.down)}<span>Excel</span></button>`;
       $('#csv').onclick = exportCsv;
       renderBookings();
@@ -124,12 +145,14 @@
       $('#top-actions').innerHTML = `<button class="b b-dark" id="new-camp">${icon(I.plus)}<span>ახალი ბანაკი</span></button>`;
       $('#new-camp').onclick = () => campForm({ season: 'summer', status: 'soon', ageMin: 15, ageMax: 25, order: state.camps.length + 1 });
       $('#view').innerHTML = `<div class="camp-grid">${state.camps.map(c => {
-        const st = campState(c), n = state.bookings.filter(b => b.campId === c.id && b.status !== 'cancelled').length;
+        const n = state.bookings.filter(b => b.campId === c.id && ACTIVE.includes(b.status)).length, wl = state.bookings.filter(b => b.campId === c.id && b.status === 'waitlist').length;
+        c.taken = n; const st = campState(c);
         return `<button class="camp-card ${esc(c.season)}" data-id="${esc(c.id)}">
           <span class="cc-top"><span class="pill st-${st}">${STATE[st]}</span>${c.featured ? '<span class="pill feat">მთავარზე</span>' : ''}</span>
           <b>${esc(c.title)}</b>
           <span class="muted">${esc(campDates(c))}${c.location ? ', ' + esc(c.location) : ''}</span>
-          <span class="cc-foot"><span>${esc(price(c))}</span><span>${n} ჯავშანი</span></span>
+          <span class="cc-foot"><span>${esc(price(c))}</span><span>${n}${Number(c.capacity) > 0 ? ' / ' + esc(c.capacity) : ''} ადგილი${wl ? ` · ${wl} მოლოდინში` : ''}</span></span>
+          ${Number(c.capacity) > 0 ? `<span class="cap-bar"><i style="width:${Math.min(100, Math.round(n / c.capacity * 100))}%"></i></span>` : ''}
         </button>`;
       }).join('')}</div>`;
       $$('.camp-card').forEach(b => b.onclick = () => campForm(state.camps.find(c => c.id === b.dataset.id)));
@@ -240,13 +263,143 @@
     });
   };
 
+  /* ------------------------------------------------------------ leaders + reviews */
+  views.people = async function () {
+    const [people, reviews] = await Promise.all([Store.list('people'), Store.list('reviews')]);
+    $('#view').innerHTML = `
+      <section class="block-a">
+        <div class="block-head"><div><h2>ლიდერები</h2><p class="muted">ჩანს „ჩვენ შესახებ“ გვერდზე.</p></div><button class="b b-dark" id="add-person">${icon(I.plus)}<span>დამატება</span></button></div>
+        ${people.length ? `<div class="people">${people.map(p => `<button class="person-card" data-id="${esc(p.id)}">${p.photo ? `<img src="${p.photo}" alt="">` : `<span class="ph">${logo()}</span>`}<b>${esc(p.name)}</b><span class="muted">${esc(p.role || '')}</span></button>`).join('')}</div>` : '<p class="empty">ლიდერები ჯერ არ დაგიმატებია. სექცია საიტზე მაშინ გამოჩნდება, როცა პირველს დაამატებ.</p>'}
+      </section>
+      <section class="block-a">
+        <div class="block-head"><div><h2>შეფასებები</h2><p class="muted">წინა მონაწილეების სიტყვები. ჩანს მთავარ გვერდზე და „ჩვენ შესახებ“-ზე.</p></div><button class="b b-dark" id="add-review">${icon(I.plus)}<span>დამატება</span></button></div>
+        ${reviews.length ? `<div class="faq-list">${reviews.map(r => `<button class="card review-row" data-id="${esc(r.id)}"><span>„${esc(r.quote)}“</span><b>${esc(r.name)}${r.detail ? ' · ' + esc(r.detail) : ''}</b></button>`).join('')}</div>` : '<p class="empty">შეფასებები ჯერ არ არის.</p>'}
+      </section>`;
+    $('#add-person').onclick = () => personForm({ order: people.length + 1 });
+    $('#add-review').onclick = () => reviewForm({ order: reviews.length + 1 });
+    $$('.person-card').forEach(b => b.onclick = () => personForm(people.find(p => p.id === b.dataset.id)));
+    $$('.review-row').forEach(b => b.onclick = () => reviewForm(reviews.find(r => r.id === b.dataset.id)));
+  };
+
+  function personForm(p) {
+    let photo = p.photo || '';
+    openSheet(`<h2>${p.id ? 'ლიდერის რედაქტირება' : 'ახალი ლიდერი'}</h2>
+      <form id="pf" class="stack">
+        <div class="photo-pick"><span class="pp-img" id="pp">${photo ? `<img src="${photo}" alt="">` : logo()}</span>
+          <label class="b b-line">ფოტოს არჩევა<input type="file" accept="image/*" id="pp-file" hidden></label>${photo ? '<button type="button" class="b b-danger" id="pp-rm">ფოტოს წაშლა</button>' : ''}</div>
+        <label class="f"><span>სახელი და გვარი</span><input name="name" value="${esc(p.name || '')}" required></label>
+        <label class="f"><span>როლი</span><input name="role" value="${esc(p.role || '')}" placeholder="მაგ. ბანაკის ხელმძღვანელი"></label>
+        <label class="f"><span>მოკლედ (არასავალდებულო)</span><textarea name="bio" rows="3">${esc(p.bio || '')}</textarea></label>
+        <label class="f f-sm"><span>რიგი</span><input name="order" type="number" value="${esc(p.order ?? 1)}"></label>
+        <div class="row-end">${p.id ? `<button type="button" class="b b-danger" id="pf-del">${icon(I.trash)}<span>წაშლა</span></button>` : ''}<button class="b b-dark" type="submit">შენახვა</button></div>
+      </form>`);
+    $('#pp-file').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; photo = await shrink(f, 800); $('#pp').innerHTML = `<img src="${photo}" alt="">`; };
+    const rm = $('#pp-rm'); if (rm) rm.onclick = () => { photo = ''; $('#pp').innerHTML = logo(); rm.remove(); };
+    const f = $('#pf');
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      if (!f.name.value.trim()) return f.name.focus();
+      await guard(() => Store.saveItem('people', { id: p.id, name: f.name.value.trim(), role: f.role.value.trim(), bio: f.bio.value.trim(), order: Number(f.order.value) || 0, photo }), 'შენახულია');
+      closeSheet(); views.people();
+    };
+    const d = $('#pf-del'); if (d) d.onclick = async () => { if (!confirm(`წავშალო ${p.name}?`)) return; await guard(() => Store.removeItem('people', p.id), 'წაიშალა'); closeSheet(); views.people(); };
+  }
+
+  function reviewForm(r) {
+    openSheet(`<h2>${r.id ? 'შეფასების რედაქტირება' : 'ახალი შეფასება'}</h2>
+      <form id="rf" class="stack">
+        <label class="f"><span>რა თქვა</span><textarea name="quote" rows="4" required>${esc(r.quote || '')}</textarea></label>
+        <label class="f"><span>ვინ (სახელი)</span><input name="name" value="${esc(r.name || '')}" required placeholder="მაგ. ანა, 17"></label>
+        <label class="f"><span>დამატებით (არასავალდებულო)</span><input name="detail" value="${esc(r.detail || '')}" placeholder="მაგ. ზაფხულის ბანაკი 2026"></label>
+        <label class="f f-sm"><span>რიგი</span><input name="order" type="number" value="${esc(r.order ?? 1)}"></label>
+        <div class="row-end">${r.id ? `<button type="button" class="b b-danger" id="rf-del">${icon(I.trash)}<span>წაშლა</span></button>` : ''}<button class="b b-dark" type="submit">შენახვა</button></div>
+      </form>`);
+    const f = $('#rf');
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      if (!f.quote.value.trim() || !f.name.value.trim()) return;
+      await guard(() => Store.saveItem('reviews', { id: r.id, quote: f.quote.value.trim(), name: f.name.value.trim(), detail: f.detail.value.trim(), order: Number(f.order.value) || 0 }), 'შენახულია');
+      closeSheet(); views.people();
+    };
+    const d = $('#rf-del'); if (d) d.onclick = async () => { if (!confirm('წავშალო ეს შეფასება?')) return; await guard(() => Store.removeItem('reviews', r.id), 'წაიშალა'); closeSheet(); views.people(); };
+  }
+
+  /* ------------------------------------------------------------ visitor stats */
+  const SRC = { direct: 'პირდაპირ / ბმულით', instagram: 'Instagram', facebook: 'Facebook / Messenger', google: 'Google', tiktok: 'TikTok', x: 'X (Twitter)' };
+  const PAGES = { home: 'მთავარი', camps: 'ბანაკები', camp: 'ბანაკის გვერდი', book: 'დაჯავშნა', about: 'ჩვენ შესახებ', gallery: 'გალერეა', faq: 'კითხვები' };
+  const dayKey = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  views.stats = async function () {
+    const range = state.statsRange || 30;
+    const from = new Date(); from.setHours(0, 0, 0, 0); from.setDate(from.getDate() - (range - 1));
+    const [visits, bookings] = await Promise.all([Store.visits(dayKey(from)), state.bookings.length ? state.bookings : Store.bookings()]);
+    state.bookings = bookings;
+    const days = []; for (let i = 0; i < range; i++) { const d = new Date(from); d.setDate(from.getDate() + i); days.push(dayKey(d)); }
+    const perDay = Object.fromEntries(days.map(d => [d, 0])); visits.forEach(v => { if (v.d in perDay) perDay[v.d]++; });
+    const inRange = bookings.filter(b => b.createdAt && dayKey(new Date(b.createdAt)) >= days[0]);
+    const count = (key, map) => { const m = {}; visits.forEach(v => { const k = v[key]; m[k] = (m[k] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, n]) => [map ? (map[k] || k) : k, n]); };
+    const sources = count('s', SRC), pages = count('p', PAGES);
+    const mobile = visits.filter(v => v.m === 1).length;
+    const bookViews = visits.filter(v => v.p === 'book').length;
+    const max = Math.max(1, ...Object.values(perDay));
+    const bars = (rows) => { const top = Math.max(1, ...rows.map(r => r[1])); return `<ul class="hbars">${rows.slice(0, 8).map(([k, n]) => `<li><span class="hb-l">${esc(k)}</span><span class="hb-t"><i style="width:${n ? Math.max(2, n / top * 100) : 0}%"></i></span><b>${n}</b></li>`).join('')}</ul>`; };
+    const shortDay = (d) => { const [, m, x] = d.split('-'); return Number(x) + '.' + m; };
+    $('#top-actions').innerHTML = `<div class="seg-mini">${[7, 30, 90].map(n => `<button data-r="${n}" class="${n === range ? 'on' : ''}">${n} დღე</button>`).join('')}</div>`;
+    $$('[data-r]').forEach(b => b.onclick = () => { state.statsRange = Number(b.dataset.r); views.stats(); });
+    $('#view').innerHTML = `
+      <div class="stats stats-static">
+        <div class="stat"><b>${visits.length}</b><span>გვერდის ნახვა</span></div>
+        <div class="stat"><b>${bookViews}</b><span>დაჯავშნის გვერდზე შესვლა</span></div>
+        <div class="stat"><b>${inRange.length}</b><span>ჯავშანი</span></div>
+        <div class="stat"><b>${bookViews ? Math.min(100, Math.round(inRange.length / bookViews * 100)) + '%' : '—'}</b><span>ვინც ჯავშნის გვერდზე შევიდა, დაჯავშნა</span></div>
+      </div>
+      <section class="card chart-card">
+        <h2>ნახვები დღეების მიხედვით</h2>
+        ${visits.length ? `<div class="vchart" role="img" aria-label="ნახვები დღეების მიხედვით, ბოლო ${range} დღე">
+          <div class="vc-grid"><span>${max}</span><span>${Math.round(max / 2)}</span><span>0</span></div>
+          <div class="vc-bars" style="--n:${range}">${days.map((d, i) => `<button class="vc-bar" tabindex="0" data-tip="${shortDay(d)}: ${perDay[d]} ნახვა"><i style="height:${perDay[d] / max * 100}%"></i>${(range <= 7 || i % Math.ceil(range / 6) === 0) ? `<em>${shortDay(d)}</em>` : ''}</button>`).join('')}</div>
+          <div class="vc-tip" id="vc-tip" hidden></div>
+        </div>
+        <details class="table-view"><summary>ცხრილის სახით</summary><table><tr><th>დღე</th><th>ნახვა</th></tr>${days.slice().reverse().map(d => `<tr><td>${shortDay(d)}</td><td>${perDay[d]}</td></tr>`).join('')}</table></details>` : '<p class="empty">ამ პერიოდში ნახვები ჯერ არ დაფიქსირებულა. ნახვები ითვლება საიტის ატვირთვის შემდეგ.</p>'}
+      </section>
+      <div class="grid2">
+        <section class="card"><h2>საიდან მოდიან</h2>${sources.length ? bars(sources) : '<p class="muted">—</p>'}</section>
+        <section class="card"><h2>რომელ გვერდებს ნახულობენ</h2>${pages.length ? bars(pages) : '<p class="muted">—</p>'}</section>
+      </div>
+      <section class="card"><h2>მოწყობილობა</h2>${visits.length ? bars([['ტელეფონი', mobile], ['კომპიუტერი', visits.length - mobile]]) : '<p class="muted">—</p>'}
+        <p class="muted small-note">რეკლამის ბმულს თუ ბოლოში მიუწერ <b>?src=სახელი</b> (მაგ. <code>…/akhali-era/?src=reklama1</code>), აქ ცალკე გამოჩნდება, რამდენი შემოვიდა იმ რეკლამიდან.</p></section>`;
+    const tip = $('#vc-tip');
+    $$('.vc-bar').forEach(b => {
+      const show = () => { tip.textContent = b.dataset.tip; tip.hidden = false; const r = b.getBoundingClientRect(), p = b.parentElement.getBoundingClientRect(); tip.style.left = Math.min(p.width - 120, Math.max(0, r.left - p.left + r.width / 2 - 60)) + 'px'; };
+      b.addEventListener('pointerenter', show); b.addEventListener('focus', show);
+      b.addEventListener('pointerleave', () => tip.hidden = true); b.addEventListener('blur', () => tip.hidden = true);
+    });
+  };
+
+  /* ------------------------------------------------------------ install as phone app */
+  let installEvt = null;
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; bindInstall(); });
+  const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  function bindInstall() {
+    $$('[data-install]').forEach(b => {
+      b.hidden = standalone();
+      b.onclick = async () => {
+        if (installEvt) { installEvt.prompt(); await installEvt.userChoice.catch(() => {}); installEvt = null; return; }
+        const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        openSheet(`<h2>ტელეფონზე დაყენება</h2>${ios
+          ? '<ol class="steps-list"><li>გახსენი ეს გვერდი <b>Safari</b>-ში</li><li>დააჭირე ქვემოთ <b>Share</b> ღილაკს (კვადრატი ისრით)</li><li>აირჩიე <b>Add to Home Screen</b></li><li>დააჭირე <b>Add</b></li></ol>'
+          : '<ol class="steps-list"><li>გახსენი ეს გვერდი <b>Chrome</b>-ში</li><li>დააჭირე ზემოთ <b>⋮</b> მენიუს</li><li>აირჩიე <b>Add to Home screen</b> ან <b>Install app</b></li><li>დაადასტურე</li></ol>'}
+          <p class="muted">ეკრანზე გამოჩნდება „ახალი ერა“-ს ხატულა. ადმინ პანელი აპლიკაციასავით გაიხსნება.</p>`);
+      };
+    });
+  }
+
   /* resize to fit one Firestore document (< 1 MB) */
-  function shrink(file) {
+  function shrink(file, start = 1600) {
     return new Promise((res, rej) => {
       const img = new Image(), url = URL.createObjectURL(file);
       img.onload = () => {
         URL.revokeObjectURL(url);
-        let max = 1600, q = .82, out;
+        let max = start, q = .82, out;
         for (let n = 0; n < 6; n++) {
           const s = Math.min(1, max / Math.max(img.width, img.height));
           const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
@@ -275,7 +428,8 @@
         <button class="stat ${status === 'new' ? 'on' : ''}" data-s="new"><b>${count('new')}</b><span>ახალი</span></button>
         <button class="stat ${status === 'confirmed' ? 'on' : ''}" data-s="confirmed"><b>${count('confirmed')}</b><span>დადასტურებული</span></button>
         <button class="stat ${status === 'paid' ? 'on' : ''}" data-s="paid"><b>${count('paid')}</b><span>გადახდილი</span></button>
-        <button class="stat ${status === '' ? 'on' : ''}" data-s=""><b>${all.filter(b => b.status !== 'cancelled').length}</b><span>სულ აქტიური</span></button>
+        ${count('waitlist') ? `<button class="stat ${status === 'waitlist' ? 'on' : ''}" data-s="waitlist"><b>${count('waitlist')}</b><span>მოლოდინის სია</span></button>` : ''}
+        <button class="stat ${status === '' ? 'on' : ''}" data-s=""><b>${all.filter(b => ACTIVE.includes(b.status)).length}</b><span>სულ ადგილი</span></button>
       </div>
       <div class="filters">
         <label class="search">${icon(I.search)}<input id="q" value="${esc(q)}" placeholder="სახელი, ტელეფონი…" type="search"></label>
@@ -326,11 +480,13 @@
       const patch = { status: f.status.value, adminNote: f.note.value.trim() };
       await guard(() => Store.updateBooking(b.id, patch), 'შენახულია');
       Object.assign(b, patch); closeSheet(); renderBookings(); badge(state.bookings.filter(x => x.status === 'new').length);
+      Store.syncSeats(state.bookings, state.camps).catch(() => {});
     };
     $('#bk-del').onclick = async () => {
       if (!confirm(`წავშალო ${b.name}-ის ჯავშანი სამუდამოდ? აღდგენა შეუძლებელია.`)) return;
       await guard(() => Store.deleteBooking(b.id), 'ჯავშანი წაიშალა');
       state.bookings = state.bookings.filter(x => x.id !== b.id); closeSheet(); renderBookings();
+      Store.syncSeats(state.bookings, state.camps).catch(() => {});
     };
   }
 
@@ -378,6 +534,9 @@
         </div>
         <div class="row2">
           <label class="f"><span>რიგითობა</span><input type="number" name="order" value="${v('order')}"></label>
+        </div>
+        <div class="row2">
+          <label class="f"><span>ადგილების რაოდენობა (0 = შეუზღუდავი). როცა შეივსება, ახალი ჯავშნები მოლოდინის სიაში ჩაიწერება</span><input type="number" min="0" name="capacity" value="${esc(c.capacity ?? 0)}"></label>
           <label class="switch" style="align-self:end;margin-bottom:12px"><input type="checkbox" name="featured"${c.featured ? ' checked' : ''}><span>მთავარ გვერდზე</span></label>
         </div>
         <div class="row-end">${isNew ? '' : `<button type="button" class="b b-danger" id="cf-del">${icon(I.trash)}<span>წაშლა</span></button>`}<button class="b b-dark" type="submit">შენახვა</button></div>
@@ -415,6 +574,7 @@
         start: g('start'), end: g('end'), datesText: g('datesText'), ageMin: num('ageMin'), ageMax: num('ageMax'), price: num('price'),
         summary: g('summary'), description: f.description.value.trim(), includes: f.includes.value.trim(), program: f.program.value.trim(),
         order: num('order') ?? 9, featured: f.featured.checked,
+        capacity: Math.max(0, num('capacity') || 0),
         info: f.info.value.trim(), questions: questions.map(q => ({ id: q.id, label: String(q.label || '').trim(), type: q.type === 'short' ? 'short' : 'long', required: !!q.required })).filter(q => q.label)
       };
       await guard(() => Store.saveCamp(data), 'ბანაკი შენახულია');

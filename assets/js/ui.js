@@ -22,9 +22,15 @@
   const campDays = (c) => { const s = parse(c.start), e = parse(c.end); return s && e ? Math.round((e - s) / 864e5) + 1 : 0; };
   const daysUntil = (c) => { const s = parse(c.start); return s ? Math.ceil((s - new Date()) / 864e5) : null; };
   function campState(c) {
-    if (c.status === 'open') { const e = parse(c.end); if (e && e.getTime() + 864e5 < Date.now()) return 'closed'; }
+    if (c.status === 'open') {
+      const e = parse(c.end); if (e && e.getTime() + 864e5 < Date.now()) return 'closed';
+      if (Number(c.capacity) > 0 && Number(c.taken || 0) >= Number(c.capacity)) return 'full';
+    }
     return c.status || 'soon';
   }
+  const seatsLeft = (c) => Number(c.capacity) > 0 ? Math.max(0, Number(c.capacity) - Number(c.taken || 0)) : null;
+  /* attach booked-seat counts to camps */
+  async function withSeats(camps) { const s = await Store.seats().catch(() => ({})); camps.forEach(c => c.taken = s[c.id] || 0); return camps; }
   const STATE = { open: 'რეგისტრაცია ღიაა', soon: 'მალე', closed: 'რეგისტრაცია დასრულდა', full: 'ადგილები შევსებულია' };
   const SEASON = { winter: 'ზამთარი', summer: 'ზაფხული' };
   const price = (c) => (c.price || c.price === 0) && c.price !== '' ? Number(c.price).toLocaleString('en').replace(/,/g, ' ') + ' ₾' : '—';
@@ -113,6 +119,31 @@
     }
   }
 
+  /* privacy-friendly page-view counter: page, source, device. Once per page per browser session. */
+  function trackVisit() {
+    try {
+      const page = document.body.dataset.page || 'other';
+      const key = 'ae-seen-' + page;
+      if (sessionStorage.getItem(key) || /^(localhost|127\.)/.test(location.hostname)) return;
+      sessionStorage.setItem(key, '1');
+      const q = new URLSearchParams(location.search);
+      let src = (q.get('utm_source') || q.get('src') || '').toLowerCase();
+      if (!src) {
+        const r = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : '';
+        if (!r || r === location.hostname) src = sessionStorage.getItem('ae-src') || 'direct';
+        else if (/instagram/.test(r)) src = 'instagram';
+        else if (/facebook|fb\.com|messenger/.test(r)) src = 'facebook';
+        else if (/google\./.test(r)) src = 'google';
+        else if (/tiktok/.test(r)) src = 'tiktok';
+        else if (/t\.co$|twitter|x\.com/.test(r)) src = 'x';
+        else src = r.slice(0, 30);
+      }
+      sessionStorage.setItem('ae-src', src);
+      const d = new Date(), day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      Store.track({ d: day, p: page.slice(0, 20), s: src.slice(0, 30), m: matchMedia('(max-width: 760px)').matches ? 1 : 0 });
+    } catch (e) { /* ignore */ }
+  }
+
   async function boot(render) {
     document.documentElement.classList.add('js');
     let content;
@@ -120,10 +151,11 @@
     catch (e) { content = null; console.error(e); }
     if (!content) { document.body.insertAdjacentHTML('afterbegin', '<p class="load-error">საიტი ვერ ჩაიტვირთა. შეამოწმე ინტერნეტი და განაახლე გვერდი.</p>'); return; }
     renderChrome(content);
+    trackVisit();
     try { await render(content); }
     catch (e) { console.error(e); }
     document.documentElement.classList.add('ready');
   }
 
-  window.UI = { esc, lines, paras, $, $$, campDates, campDays, daysUntil, campState, STATE, SEASON, price, ages, tel, logo, boot, plural };
+  window.UI = { esc, lines, paras, $, $$, campDates, campDays, daysUntil, campState, seatsLeft, withSeats, STATE, SEASON, price, ages, tel, logo, boot, plural };
 })();
