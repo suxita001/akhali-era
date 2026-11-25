@@ -124,7 +124,7 @@
     $('#top-actions').innerHTML = '';
     $('#view').innerHTML = '<div class="loading">იტვირთება…</div>';
     closeSheet();
-    views[state.view]().catch(e => { console.error(e); $('#view').innerHTML = '<p class="empty">მონაცემები ვერ ჩაიტვირთა. შეამოწმე ინტერნეტი და Firebase-ის წესები (README.md).</p>'; });
+    views[state.view]().catch(e => { console.error(e); $('#view').innerHTML = `<p class="empty">მონაცემები ვერ ჩაიტვირთა. განაახლე გვერდი (Ctrl+F5). თუ არ გაიხსნა, შეამოწმე Firebase-ის წესები.<br><small>${esc(e.code || e.message || '')}</small></p>`; });
   }
 
   function badge(n) { $$('[data-badge="bookings"]').forEach(b => { b.textContent = n || ''; b.hidden = !n; }); }
